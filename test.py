@@ -1418,7 +1418,7 @@ def provide_document_download(output_path):
 
 # Streamlit页面配置和主要UI代码
 st.set_page_config(page_title="课程大纲生成器", layout="wide")
-st.title("《机器学习(Python)》教学大纲生成器")
+st.title("教学大纲生成器")
 
 # 创建两列布局
 col1, col2 = st.columns(2)
