@@ -832,7 +832,7 @@ def generate_course_schedule(course_intro, course_objectives, total_hours, theor
        - 每章必须包含3个主要小节
        - 小节内容具体详实，可操作
        - 章节之间有机衔接，避免重复
-       - 理论与实践紧密结合
+       - 理论与实际紧密结合
     
     3. 学时分配规则：
        理论课：
@@ -1008,7 +1008,7 @@ def generate_lab_schedule(course_schedule, practice_hours, course_objectives):
        - 总学时必须等于{practice_hours}
        - 基础性实验：2-4学时/个
        - 综合性实验：4学/个
-       - 设计性实验：4-6学时/个
+       - 设计性实验���4-6学时/个
        - 合理分配各类实验
     
     4. 分组要求：
@@ -1060,14 +1060,29 @@ def generate_lab_schedule(course_schedule, practice_hours, course_objectives):
 
 def generate_assessment_scheme(course_objectives, assessment_data, labs_data, theory_hours, practice_hours, exam_type, exam_form, course_type):
     """生成考核方案"""
-    system_prompt = """
+    
+    # 根据考核形式选择不同的模板
+    if exam_type == "考试":
+        if exam_form == "闭卷笔试":
+            exam_template = "期末考试（闭卷笔试）"
+        elif exam_form == "开卷笔试":
+            exam_template = "期末考试（开卷笔试）"
+    else:
+        if exam_form == "课程论文":
+            exam_template = "课程论文"
+        elif exam_form == "项目报告":
+            exam_template = "项目报告"
+        elif exam_form == "课程设计":
+            exam_template = "课程设计"
+    
+    system_prompt = f"""
     你是一个课程设计专家，请根据课程信息生成考核方案。
     
     请严格按照以下JSON格式输出：
-    {
+    {{
         "assessment_items": [
-            {
-                "type": "期末考试（闭卷笔试）",  # 考试课程必须包含期末考试
+            {{
+                "type": "{exam_template}", 
                 "percentage": 50,
                 "criteria": [
                     "1. 基础知识（20%）：概念理解、原理掌握",
@@ -1075,9 +1090,9 @@ def generate_assessment_scheme(course_objectives, assessment_data, labs_data, th
                     "3. 创新思维（10%）：方案优化、拓展思考"
                 ],
                 "objectives": ["1", "2"]
-            }
+            }}
         ]
-    }
+    }}
     """
     
     user_prompt = f"""
@@ -1111,7 +1126,7 @@ def generate_assessment_scheme(course_objectives, assessment_data, labs_data, th
        项目报告形式：
        - 期末项目：35-45%
        - 平时成绩：25-35%
-       - 实验成绩（如有）：20-30%
+       - ��验成绩（如有）：20-30%
        
        课程设计形式：
        - 设计成果：40-50%
@@ -1312,7 +1327,7 @@ def prepare_document_context():
         'major': major,
         'prerequisites': prerequisites,
         
-        # 毕业要求指标点
+        # 业要求指标点
         'graduation_requirements': st.session_state.get('graduation_requirements', {
             'knowledge': [],
             'ability': [],
@@ -1398,22 +1413,27 @@ def prepare_document_context():
     # 添加实验课程标记
     context['has_labs'] = practice_hours > 0
     
-    # 添加��试/考查课程标记
+    # 添加试/考查课程标记
     context['is_exam'] = exam_type == "考试"
     
     return context
 
-def provide_document_download(output_path):
+def provide_document_download(doc):
     """提供文档下载"""
-    with open(output_path, "rb") as file:
-        # 使用课程名动态生成文件名
-        file_name = f"{course_name_cn}-课程大纲.docx"
-        st.download_button(
-            label="下载生成的文档",
-            data=file,
-            file_name=file_name,
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+    # 渲染文档到内存
+    from io import BytesIO
+    doc_io = BytesIO()
+    doc.save(doc_io)
+    doc_io.seek(0)
+    
+    # 使用课程名动态生成文件名
+    file_name = f"{course_name_cn}-课程大纲.docx"
+    st.download_button(
+        label="下载生成的文档",
+        data=doc_io,
+        file_name=file_name,
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
     st.success("文档生成成功！")
 
 # Streamlit页面配置和主要UI代码
@@ -1681,7 +1701,7 @@ def display_course_objectives(objectives_data):
         return
         
     try:
-        # ���果是字符串格式，按换行符分割
+        # 果是字符串格式，按换行符分割
         if isinstance(objectives_data, str):
             objectives = objectives_data.split('\n')
         # 如果是列表格式，直接使用
@@ -1719,7 +1739,7 @@ def display_assessment_description(assessment_table):
             st.write(f"- {score_type}：占总成绩的{percentage}%")
         st.write(f"总计：{total_score}%")
         
-        # 2. 详细��明
+        # 2. 详细说明
         st.markdown("**2. 各部分考核说明**")
         for item in assessment_table:
             st.markdown(f"**（{item.get('type', '')}）{item.get('percentage', '')}%**")
@@ -1803,13 +1823,11 @@ with col_doc:
             if context['objectives_mapping']:
                 st.write("课程目标与毕业要求指标点对应关系数据已准备")
             
-            # 渲染并保存文档
+            # 渲染文档
             doc.render(context)
-            output_path = "课程大纲.docx"
-            doc.save(output_path)
             
             # 提供下载
-            provide_document_download(output_path)
+            provide_document_download(doc)
             
         except Exception as e:
             st.error(f"生成文档时出错：{str(e)}")
