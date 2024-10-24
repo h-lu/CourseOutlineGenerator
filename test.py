@@ -1440,7 +1440,7 @@ with col1:
 with col2:
     # 其他息
     st.subheader("其他信息")
-    exam_type = st.radio("期末��核方式", ["考试", "考查"])
+    exam_type = st.radio("期末考核方式", ["考试", "考查"])
     
     # 添加期末考核具体形式选择
     if exam_type == "考试":
