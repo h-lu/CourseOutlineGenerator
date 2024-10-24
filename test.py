@@ -577,7 +577,7 @@ def generate_course_content(course_name, course_type, department, major, aacsb_g
     额外信息：
     {extra_info}
     
-    请生���课程内容，要求：
+    请生成课程内容，要求：
     1. 课程简介要求（总字数300字左右）：
        - 课程定位：说明在专业培养中的地位和作用
        - 课程目的：明确培养目标和预期效果
@@ -642,7 +642,7 @@ def generate_course_content(course_name, course_type, department, major, aacsb_g
         mapping_objectives = set(item['objective'] for item in result['objectives_mapping'])
         
         if objectives_set != mapping_objectives:
-            st.error("课��目标与映射关系表的目标不一致")
+            st.error("课程目标与映射关系表的目标不一致")
             return None
             
         if not all(key in result['textbooks'] for key in ['main', 'references']):
@@ -809,7 +809,7 @@ def generate_course_schedule(course_intro, course_objectives, total_hours, theor
     """
     
     user_prompt = f"""
-    课程简���：
+    课程简介：
     {json.dumps(course_intro, ensure_ascii=False)}
     
     课程目标：
@@ -889,7 +889,7 @@ def generate_course_schedule(course_intro, course_objectives, total_hours, theor
     
     请以json格式输出课程内容与学时分配表。注意：
     1. 内容要具体明确，避免空泛
-    2. 每章都要有清晰的教学���标
+    2. 每章都要有清晰的教学目标
     3. 理论与实践要紧密结合
     4. 学时分配要准确合理
     5. 教学方式要多样灵活
@@ -2073,7 +2073,7 @@ with col_data:
                 st.success("所有数据已生成完成！")
             
         except Exception as e:
-            st.error(f"准��数据文件时��错：{str(e)}")
+            st.error(f"准备数据文件时出错：{str(e)}")
 
 # 添加数据导入功能
 st.subheader("导入课程数据")
