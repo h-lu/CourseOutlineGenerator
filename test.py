@@ -106,7 +106,7 @@ def display_lab_schedule(labs_data):
                 "学习要求": "\n".join(lab.get('requirements', [])),
                 "实验学时": lab.get('hours', ''),
                 "每组人数": lab.get('group_size', ''),
-                "必修/选修": "必修" if lab.get('required', True) else "选修",
+                "必修/选修": lab.get('required', '必修'),  # 直接使用字符串
                 "实验项目类型": lab.get('type', '')
             })
         
@@ -988,7 +988,7 @@ def generate_lab_schedule(course_schedule, practice_hours, course_objectives):
                 "hours": 2,
                 "group_size": 1,
                 "type": "基础性",  # 基础性/综合性/设计性
-                "required": true,   # true表示必修
+                "required": "必修",   # 必修/选修
                 "objectives": ["2", "3"],  # 对应的课程目标编号
                 "chapter": "第1章"  # 对应的教学章节
             }
@@ -1600,7 +1600,7 @@ def prepare_document_context():
                 'requirements': lab.get('requirements', []),
                 'hours': lab.get('hours', ''),
                 'group_size': lab.get('group_size', ''),
-                'required': lab.get('required', True),
+                'required': lab.get('required', '必修'),
                 'type': lab.get('type', '')
             }
             for lab in st.session_state.get('labs_schedule', [])
