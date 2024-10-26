@@ -2,6 +2,9 @@ import streamlit as st
 import json
 from openai import OpenAI
 import os
+from docx import Document
+from docx.shared import Pt
+import io
 
 # 设置页面配置必须是第一个 Streamlit 命令
 st.set_page_config(page_title="课程考试生成器", page_icon="📚", layout="wide")
@@ -22,7 +25,7 @@ def get_project_score_standards(project_requirements):
         "概要设计": {
             "score": 25,
             "items": [
-                {"name": "架构设计", "score": 8, "criteria": "系统架构的合理性和可扩展性"},
+                {"name": "架构设计", "score": 8, "criteria": "系���构的合理性和可扩展性"},
                 {"name": "技术方案", "score": 7, "criteria": "技术选型的适当性"},
                 {"name": "模块划分", "score": 5, "criteria": "模块划分的清晰度和耦合度"},
                 {"name": "创新性", "score": 5, "criteria": "设计方案的创新性"}
@@ -144,30 +147,30 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
         {course_type}练习题要求：
         1. 难度级别：{config.get('difficulty', '中等')}
         
-        2. 题型要求：
+        2. 题型要求（必须严格按照以下数量生成）：
         {chr(10).join([
-            f"   - {q_type}：{details['count']}题（{details['description']}）"
+            f"   - {q_type}：必须成{details['count']}题（{details['description']}）"
             for q_type, details in config.get('practice_types', {}).items()
         ])}
         
         3. 难度分布要求：
         {
             '''
-            基础难度分布：
+            基础难度要求：
             - 基础题：80%（巩固基本概念）
             - 中等题：20%（简单应用）
             - 题目描述清晰直观
             - 解题步骤简单明确
             ''' if config.get('difficulty') == '基础' else
             '''
-            中等难度分布：
+            中等难度要求：
             - 基础题：40%（巩固基础）
             - 中等题：50%（加深理解）
             - 提高题：10%（拓展思维）
             - 涉及概念综合应用
             ''' if config.get('difficulty') == '中等' else
             '''
-            提高难度分布：
+            提高难度要求：
             - 基础题：20%（知识铺垫）
             - 中等题：50%（深化理解）
             - 提高题：30%（能力拓展）
@@ -177,17 +180,19 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
         }
         
         4. 要求说明：
-        - 每种题型的数量严格按照设定执行
-        - 题目难度符合选定的难度级别
-        - 涉及知识点符合选定章节
-        - 题目表述清晰准确
-        - 答案和解析详细完整
+        - 必须严格按照指定的题型和数量生成题目
+        - 每种题型的数量不能多也不能少
+        - 题目难度必须符合选定的难度级别
+        - 必须涉及选定章节的识点
+        - 题目表述必须清确
+        - 案和解析必须详细完整
+        - 每道题目必须标注对应的课程目标和AACSB目标
         """,
         
         "实验": f"""
-        请生成一个完整的{course_type}实验指导方案，实验类型为{config.get('lab_type', '综合性')}实验。
+        请生成一个完整的{course_type}验指导方案，型为{config.get('lab_type', '综合性')}实验。
         
-        实验设计要求：
+        ��验设计要求：
         1. 实验定位：
            {config.get('lab_type', '综合性')}实验的特点：
            {
@@ -211,7 +216,7 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
                设计性实验：
                - 提供开放性问题
                - 需要自主设计解决方案
-               - 只提基本框架或不提供
+               - 只提基本框或不提供
                - 鼓励创新和多样化
                - 重视方案的可行性
                '''
@@ -249,7 +254,7 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
         
         6. 创新与拓展：
            - 提供选做内容
-           - 鼓励创新思维
+           - 鼓励创新维
            - 指出扩展方向
         
         请确保生成的实验内容：
@@ -311,7 +316,7 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
                    * 代码版本控制
                    * 单元测试用例
                    * 代码审查记录
-                   * 性能优化方案
+                   * 性能优化方
                    ''' if req == "代码实现" else
                    '''
                    测试报告：
@@ -343,7 +348,7 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
            - 答辩表现：项目展示和答辩优秀（+2分）
         
         6. 扣分项：
-           - 迟交：每迟交一天扣总分5分
+           - 迟交：每迟交一天扣总5分
            - 抄袭：发现抄袭直接记0分
            - 文档缺失：缺少关键文档扣5-10分
            - 功能缺陷：重要功能缺失每扣3-5分
@@ -351,7 +356,7 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
         7. 项目时间安排：
            - 需求分析：建议用时20%
            - 设计阶段：建议用时30%
-           - 开发实现：建议用时35%
+           - 开发现：建议用35%
            - 测试优化：建议用时15%
         
         8. 团队协作要求（如果是团队项目）：
@@ -367,32 +372,34 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
            - 考试时长：{config.get('duration', 120)}分钟
            - 总分：{config.get('total_score', 100)}分
         
-        2. 题型要求：
+        2. 题型要求（必须严格按照以下数量和分值生成）：
         {chr(10).join([
-            f"   - {q_type}：{details['count']}题，每题{details['score']}分，共{details['total']}分"
+            f"   - {q_type}：必须生成{details['count']}题，每题{details['score']}分，总计{details['total']}分"
             for q_type, details in config.get('question_types', {}).items()
         ])}
         
         3. 难度分布：
-           - 基础题：40%
-           - 中等题：40%
-           - 困难题：20%
+           - 基础题：40%（基本概念和简单应用）
+           - 中等题：40%（综合运用和分析）
+           - 困难题：20%（深入理解和创新）
         
-        4. 知识点覆盖：
+        4. 识点覆盖：
            - 重点章节内容占比70%
            - 基础知识考察30%
+           - 确保知识点分布合理
         
-        5. 考试目标：
-           - 考察学生对课程核心知识的掌握程度
-           - 评估学生的实践应用能力
-           - 测试学生的创新思维能力
+        5. 题目要求：
+           - 每道题目必须标注对应的课程目标和AACSB目标
+           - 每道题目必须包含详细的答案和解析
+           - 题目描述必须清晰准确
+           - 答案和评分标准必须明确
         
-        请确保：
-        1. 每种题型的量和分值严格按照设定执行
-        2. 题目难度分布合理
-        3. 知识点覆盖全面
-        4. 题目表述清晰准确
-        5. 答案和评分标准明确
+        请注意：
+        1. 题目数量必须严格按照要求生成，不能多也不能少
+        2. 每道题的分值必须与设定一致
+        3. 各种题型的总分必须符合设定
+        4. 必须覆盖选定的所有章节内容
+        5. 确保题目难度分布合理
         """
     }
 
@@ -455,7 +462,7 @@ def create_exam_prompt(outline_data, exam_type, chapters=None, additional_requir
     
     return system_prompt, user_prompt
 
-def generate_exam(outline_data, exam_type, chapters=None, additional_requirements=None, config=None):
+def generate_exam(outline_data, exam_type, chapters=None, additional_requirements=None, config=None, temperature=0.7):
     """调用DeepSeek API生成考试内容"""
     client = OpenAI(
         api_key=st.secrets["DEEPSEEK_API_KEY"],
@@ -472,7 +479,7 @@ def generate_exam(outline_data, exam_type, chapters=None, additional_requirement
                 {"role": "user", "content": user_prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.7
+            temperature=temperature  # 使用传入的temperature参数
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
@@ -534,7 +541,7 @@ def display_question(q, index):
                     env_type_names = {
                         'hardware': '硬件要求',
                         'software': '软件要求',
-                        'packages': '依赖包'
+                        'packages': '��赖包'
                     }
                     for env_type, items in experiment['prerequisites']['environment'].items():
                         st.markdown(f"**{env_type_names.get(env_type, env_type)}：**")
@@ -645,7 +652,7 @@ def display_question(q, index):
         if 'requirements' in project:
             with st.expander("项目要求", expanded=True):
                 for module, details in project['requirements'].items():
-                    st.markdown(f"### {module}求")
+                    st.markdown(f"### {module}")
                     if '说明' in details:
                         st.markdown(f"**说明：** {details['说明']}")
                     if '交付物' in details:
@@ -702,21 +709,30 @@ def display_question(q, index):
                     
     else:  # 普通题目显示逻辑
         st.markdown(f"### 第{index}题")
-        if 'type' in q:
-            st.markdown(f"**题型：** {q['type']}")
-        if 'difficulty' in q:
-            st.markdown(f"**难度：** {show_difficulty(q.get('difficulty', '中等'))}")
         
-        # 显示课程目标和AACSB目标
-        if 'course_objectives' in q:
-            st.markdown("**对应课程目标：**")
-            for obj in q['course_objectives']:
-                st.markdown(f"- {obj}")
+        # 使用列布局显示题目信息
+        col1, col2, col3 = st.columns([1, 2, 2])
+        with col1:
+            if 'type' in q:
+                st.markdown(f"**题型：** {q['type']}")
+            if 'difficulty' in q:
+                st.markdown(f"**难度：** {show_difficulty(q.get('difficulty', '中等'))}")
         
-        if 'aacsb_goals' in q:
-            st.markdown("**对应AACSB目标：**")
-            for goal in q['aacsb_goals']:
-                st.markdown(f"- {goal}")
+        with col2:
+            if 'course_objectives' in q:
+                objectives = q['course_objectives']
+                if isinstance(objectives, list):
+                    st.markdown(f"**课程目标：** {', '.join(objectives)}")
+                else:
+                    st.markdown(f"**课程目标：** {objectives}")
+        
+        with col3:
+            if 'aacsb_goals' in q:
+                goals = q['aacsb_goals']
+                if isinstance(goals, list):
+                    st.markdown(f"**AACSB目标：** {', '.join(goals)}")
+                else:
+                    st.markdown(f"**AACSB目：** {goals}")
         
         # 显示题目内容
         if 'question' in q:
@@ -838,7 +854,7 @@ def get_lab_type_requirements(lab_type, course_type, major):
                 "有一定的探索空间"
             ],
             "guidance_level": [
-                "提供实��架",
+                "提供实",
                 "给出关键步骤指导",
                 "部分内容需要自主设计",
                 "预期结果有一定弹性"
@@ -919,6 +935,8 @@ def main():
         
         if outline_data:
             st.success("✅ 课程大纲加载成功！")
+            # 保存课程名称到session state
+            st.session_state.course_name = outline_data['basic_info']['course_name_cn']
             
             col1, col2 = st.columns(2)
             with col1:
@@ -991,7 +1009,7 @@ def main():
                     help="可以选择个章节，不选择则默认覆所有章节"
                 )
 
-                # 根据选择的考试类型显示相关配置
+                # 根据选择的考试类型显示相关置
                 if selected_type == "练习":
                     # 练习难度选择
                     practice_difficulty = st.radio("练习难度", ["基础", "中等", "提高"], horizontal=True)
@@ -1063,11 +1081,11 @@ def main():
                         • 提供详细的操作指导和完整代码框架
                         • 设置明确的检查点和预期结果
                         • 适合：初学者，新概念学习
-                        • 评分重点：基本概念理解，基本技能掌，操作的规范性，结果的正确性
+                        • 评分重点：基本概念理基能掌，操作的规范性，结果的正确性
                         
                         综合性实验：
                         • 涉及多个知识点的综合应用
-                        • 提供关键步骤指导和部分代码框架
+                        • 供关键步骤指导和部分代码框架
                         • 需要自主设计部分内容
                         • 适合：有一定基础的学习者
                         • 评分重点：知识点的综合运用，问题分析能力，方案设计能力，实现的完整性
@@ -1134,7 +1152,7 @@ def main():
                                 "• 创新方案设计",
                                 "• 实际问题解决"
                             ],
-                            "评分标准": [
+                            "评��标准": [
                                 "• 设计创新性（30%）",
                                 "• 实现可行性（40%）",
                                 "• 文档专业性（30%）"
@@ -1173,7 +1191,7 @@ def main():
                         建议：
                         1. 完整项目建议选择3-4个模块
                         2. 小型项目可选择2-3个核心模块
-                        3. 根据课程重点和时间安排适当调整
+                        3. 根据程重点和时间安排适当调整
                         """
                     )
                     
@@ -1202,7 +1220,7 @@ def main():
                     selected_types = st.multiselect(
                         "选择题目类型",
                         list(question_types.keys()),
-                        help="选择需要包含的题型"
+                        help="择需要包型"
                     )
                     
                     # 如果有选择题型，显示配置选项
@@ -1264,80 +1282,191 @@ def main():
                 help="在这里输入任何额外的要求，这些要求将被用于定制生成的考试内容"
             )
             
+            # 在 main 函数中修改生成内容的部分
             if st.button("🎯 生成考试内容", use_container_width=True):
-                with st.spinner("正在生成考试内容请稍候..."):
-                    # 处理选中的章节
-                    chapters = None if not selected_chapters else [ch.split()[0] for ch in selected_chapters]
-                    
-                    # 收集配置信息
-                    config = {
-                        "type": selected_type,
-                        "chapters": chapters,
-                        "additional_requirements": additional_requirements.strip() if additional_requirements.strip() else None
-                    }
-                    
-                    # 添加类型特定的配置
-                    if selected_type == "练习":
-                        config["difficulty"] = practice_difficulty
-                        if selected_practice_types:
-                            config["practice_types"] = practice_config
-                    elif selected_type == "实验":
-                        config["lab_type"] = lab_type
-                    elif selected_type == "大作业":
-                        config["project_requirements"] = project_requirements
-                    elif selected_type == "期末试题":
-                        config["duration"] = exam_duration
-                        config["total_score"] = total_score
-                        config["question_types"] = {
-                            q_type: {
-                                "count": details["count"],
-                                "score": details["score"],
-                                "total": details["count"] * details["score"]
-                            }
-                            for q_type, details in question_types.items()
-                            if details["selected"]
+                # 构建配置信息
+                config = {
+                    "type": selected_type,
+                    "chapters": selected_chapters if selected_chapters else None
+                }
+                
+                # 根据不同考试类型添加特定配置
+                if selected_type == "练习":
+                    config["difficulty"] = practice_difficulty
+                    if selected_practice_types:
+                        config["practice_types"] = practice_config
+                elif selected_type == "实验":
+                    config["lab_type"] = lab_type
+                elif selected_type == "大作业":
+                    config["project_requirements"] = project_requirements
+                elif selected_type == "期末试题":
+                    config["duration"] = exam_duration
+                    config["total_score"] = total_score
+                    config["question_types"] = {
+                        q_type: {
+                            "count": question_types[q_type]["count"],
+                            "score": question_types[q_type]["score"],
+                            "total": question_types[q_type]["count"] * question_types[q_type]["score"]
                         }
-                    
-                    # 将配置信息添加到额外要求中
-                    if config.get("additional_requirements"):
-                        config["additional_requirements"] += f"\n\n配置信息：\n{json.dumps(config, ensure_ascii=False, indent=2)}"
-                    else:
-                        config["additional_requirements"] = f"配置信息：\n{json.dumps(config, ensure_ascii=False, indent=2)}"
-                    
+                        for q_type in selected_types
+                    }
+                
+                # 保存生成的配置到session state
+                st.session_state.last_config = config
+                
+                # 增加一个temperature参数到session state
+                if 'temperature' not in st.session_state:
+                    st.session_state.temperature = 0.7
+                
+                with st.spinner("正在生成考试内容，请稍候..."):
                     exam_content = generate_exam(
                         outline_data, 
-                        config["type"], 
-                        config["chapters"],
-                        config["additional_requirements"],
-                        config  # 传入完整的配置信息
+                        selected_type,  # 使用 selected_type 而不是 config["type"]
+                        selected_chapters,  # 使用 selected_chapters 而不是 config["chapters"]
+                        additional_requirements,
+                        config,
+                        temperature=st.session_state.temperature
                     )
                     
-                    if exam_content:
-                        if selected_type == "大作业":  # 使用 selected_type 而不是 exam_type
-                            st.markdown("---")
-                            st.subheader("📝 生成的大作业内容")
-                            if 'project' in exam_content:
-                                display_question(exam_content, 1)
-                            else:
-                                st.error("生成的大作业内容格式不正确")
-                        elif selected_type == "实验":  # 使用 selected_type 而不是 exam_type
-                            st.markdown("---")
-                            st.subheader("📝 生成的实验内容")
-                            if 'experiment' in exam_content:
-                                display_question(exam_content, 1)
-                            else:
-                                st.error("生成的实验内容格式不正确")
-                        else:
-                            st.markdown("---")
-                            st.subheader("📝 生成的考试内容")
-                            if 'questions' in exam_content:
-                                for i, q in enumerate(exam_content['questions'], 1):
-                                    display_question(q, i)
-                                    st.markdown("---")
-                            else:
-                                st.error("生成的考试内容格式不正确")
-                    else:
-                        st.error("未能成功生成内容")
+                    # 保存生成的内容到session state
+                    st.session_state.last_exam_content = exam_content
+                    
+                    # 显示生成的内容
+                    display_exam_content(exam_content, selected_type)
+
+            # 添加重新生成按钮
+            if 'last_config' in st.session_state:
+                if st.button("🔄 重新生成", use_container_width=True):
+                    with st.spinner("正在重新生成内容，请稍候..."):
+                        # 增加temperature以增加随机性
+                        st.session_state.temperature += 0.1
+                        if st.session_state.temperature > 1.0:
+                            st.session_state.temperature = 0.7
+                        
+                        # 构建新的提示词
+                        additional_reqs = f"请生成与之前不同的内容。当前随机性参数：{st.session_state.temperature}"
+                        
+                        # 重新生成内容
+                        new_exam_content = generate_exam(
+                            outline_data,
+                            st.session_state.last_config["type"],
+                            st.session_state.last_config.get("chapters"),  # 使用 get 方法避免 KeyError
+                            additional_reqs,
+                            st.session_state.last_config,
+                            temperature=st.session_state.temperature
+                        )
+                        
+                        # 保存新生成的内容到session state
+                        st.session_state.last_exam_content = new_exam_content
+                        
+                        # 显示新生成的内容
+                        display_exam_content(new_exam_content, selected_type)
+
+            # 添加下载按钮部分
+            if 'last_exam_content' in st.session_state:
+                st.markdown("### 下载选项")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # JSON格式下载
+                    st.download_button(
+                        label="📥 下载JSON格式",
+                        data=json.dumps(st.session_state.last_exam_content, ensure_ascii=False, indent=2),
+                        file_name=f"{st.session_state.course_name}_{selected_type}.json",
+                        mime="application/json",
+                        help="下载JSON格式的原始数据",
+                        use_container_width=True
+                    )
+                
+                with col2:
+                    # Word格式下载
+                    doc_io = create_word_document(st.session_state.last_exam_content, selected_type, st.session_state.course_name)
+                    st.download_button(
+                        label="📄 下载Word格式",
+                        data=doc_io.getvalue(),
+                        file_name=f"{st.session_state.course_name}_{selected_type}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        help="下载Word格式的文档",
+                        use_container_width=True
+                    )
+
+def create_word_document(exam_content, selected_type, course_name):
+    """创建Word文档"""
+    doc = Document()
+    
+    # 设置标题
+    title = doc.add_heading(f'{course_name} - {selected_type}', 0)
+    
+    if selected_type == "大作业":
+        if 'project' in exam_content:
+            project = exam_content['project']
+            doc.add_heading(project.get('title', '大作业'), level=1)
+            # ... 添加大作业内容
+    
+    elif selected_type == "实验":
+        if 'experiment' in exam_content:
+            experiment = exam_content['experiment']
+            doc.add_heading(experiment.get('title', '实验'), level=1)
+            # ... 添加实验内容
+    
+    else:  # 练习或期末试题
+        if 'questions' in exam_content:
+            for i, q in enumerate(exam_content['questions'], 1):
+                # 添加题目标题
+                doc.add_heading(f'第{i}题 ({q["type"]})', level=2)
+                
+                # 添加题目内容
+                doc.add_paragraph(q['question'])
+                
+                # 添加选项（如果有）
+                if 'options' in q and q['options']:
+                    for opt in q['options']:
+                        doc.add_paragraph(opt)
+                
+                # 添加答案和解析
+                if 'answer' in q or 'explanation' in q:
+                    doc.add_heading('答案和解析：', level=3)
+                    if 'answer' in q:
+                        doc.add_paragraph(f'答案：{q["answer"]}')
+                    if 'explanation' in q:
+                        doc.add_paragraph(f'解析：{q["explanation"]}')
+                
+                doc.add_paragraph('') # 添加空行分隔
+    
+    # 保存到内存
+    doc_io = io.BytesIO()
+    doc.save(doc_io)
+    doc_io.seek(0)
+    return doc_io
+
+def display_exam_content(exam_content, selected_type):
+    """显示生成的考试内容"""
+    if exam_content:
+        if selected_type == "大作业":
+            st.markdown("---")
+            st.subheader("📝 生成的大作业内容")
+            if 'project' in exam_content:
+                display_question(exam_content, 1)
+            else:
+                st.error("生成的大作业内容格式不正确")
+        elif selected_type == "实验":
+            st.markdown("---")
+            st.subheader("📝 生成的实验内容")
+            if 'experiment' in exam_content:
+                display_question(exam_content, 1)
+            else:
+                st.error("生成的实验内容格式不正确")
+        else:
+            st.markdown("---")
+            st.subheader("📝 生成的考试内容")
+            if 'questions' in exam_content:
+                for i, q in enumerate(exam_content['questions'], 1):
+                    display_question(q, i)
+                    st.markdown("---")
+            else:
+                st.error("生成的考试内容格式不正确")
+    else:
+        st.error("未能成功生成内容")
 
 if __name__ == "__main__":
     main()
