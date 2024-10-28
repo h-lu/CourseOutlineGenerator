@@ -8,7 +8,7 @@ import pandas as pd  # 添加pandas导入
 # DeepSeek客户端配置
 client = OpenAI(
     api_key=st.secrets["DEEPSEEK_API_KEY"],  # 需要在Streamlit secrets中配置
-    base_url="https://api.deepseek.com"
+    base_url="https://api.deepseek.com/beta"
 )
 
 # 1. 首先是所有的显示函数定义
